@@ -117,9 +117,13 @@ function Gyaos(_xPos, _yPos, _id){
   this.y = _yPos;
   this.topspeed = 5;
   this.img = Gyaos_head;
+  this.w = this.img.width;
+  this.h = this.img.height;
+  this.xLimit = this.x + this.w;
+  this.yLimit = this.y + this.h;
   this.ID = _id;  
   this.location = [_xPos,_yPos];
-  this.velocity = [(Math.random()*10)+1,(Math.random()*5)+1]; //initialize with 0 velocity
+  this.velocity = [5,5];
 
   this.curr_cell = [];
   this.prev_cell = [Math.round(this.location[0] / CELL_SIZE) * CELL_SIZE, Math.round(this.location[1] / CELL_SIZE) * CELL_SIZE]; //initialize "previous cell"
@@ -156,29 +160,69 @@ function Gyaos(_xPos, _yPos, _id){
 */
 function head_handler(){
   this.head_list = [];
-  
+  this.available_spaces = [];
+  this.random_i;
+
   this.createHeads = function(x){
-    for(let i=0; i<x; i++){
-      let random_x = Math.floor(Math.random() * (windowWidth-100) );
-      let random_y = Math.floor(Math.random() * (windowHeight-100) );  
-      this.head_list[i] = new Gyaos(random_x,random_y, i);
+    let counter = 0;
+    for(let i=0; i<windowWidth/CELL_SIZE; i++){
+      for(let j=0; j<windowHeight/CELL_SIZE; j++){
+        counter++;
+        this.available_spaces[counter] = [i*CELL_SIZE, j*CELL_SIZE];
+      }
+    }
+
+    for(let i=0; i < x; i++){
+      random_i = Math.floor(Math.random()*this.available_spaces.length); //randomly selected index
+      //console.log(random_i, this.available_spaces[random_i]);
+      this.head_list[i] = new Gyaos(this.available_spaces[random_i][0], this.available_spaces[random_i][1], i);
       spatialHash.add(this.head_list[i]);
+      this.available_spaces.splice(random_i,1); //remove the randomly selected element
     }
   }
 
   this.update = function(){
-    // console.log("Spatial Hash size: " + spatialHash.length);
     for(let i=0; i<keySet.length; i++){
       if(spatialHash[keySet[i]].length > 1){
-        for(let j=0; j < spatialHash[keySet[i]].length; j++){
-          spatialHash[keySet[i]][j].velocity[0] *= -1;
-          spatialHash[keySet[i]][j].velocity[1] *= -1;
-        }
-        //console.log(spatialHash[keySet[i]]);
+        this.checkCollission(spatialHash[keySet[i]]); //pass in the hash list
       }
     }
   }  
-}
+
+  /*
+    hashList - an entry list located within the spatialHash
+    The way I'm writing this may cause performance issues. We shall see
+  */
+  this.checkCollission = function(hashList){
+    for(let j=0; j < hashList.length; j++){  
+
+      for(let k=0; k < hashList.length; k++){
+        if(j != k){
+          if(this.checkOverlap(hashList[j],hashList[k])){
+            hashList[j].velocity[1] *= -1;
+            hashList[j].velocity[0] *= -1;
+          }
+        }
+
+      } 
+
+    }
+  }
+
+  this.checkOverlap = function(a, b){
+    //console.log(a.ID,b.ID);
+    if(a.ID != b.ID){
+      if(a.xLimit >= b.x && a.yLimit >= b.y) return true; 
+      else if(a.x <= b.xLimit && a.y <= b.yLimit) return true;
+      else return false;
+
+    }
+    else{
+      return false; 
+    }
+  }
+
+} //End of HeadHandler function
 
 spatialHash.add = function(obj){
   // console.log("Adding head object with id: " + obj.ID);
@@ -192,7 +236,7 @@ spatialHash.add = function(obj){
     } 
     spatialHash[key].push(obj);
     //for visualization purposes
-    //fill(255, 225, 31);
+    // fill(255, 225, 31);
     // rect(X, Y, CELL_SIZE, CELL_SIZE);   
     //console.log("Added " + obj + " at " + key);
     //console.log(spatialHash[key]);
@@ -219,6 +263,6 @@ spatialHash.remove = function(obj){
       spatialHash[key].pop();
     }
     //for visualization purposes
-    //fill(255, 0, 34);
-    //rect(obj.prev_cell[0], obj.prev_cell[1], CELL_SIZE, CELL_SIZE);  
+    // fill(255, 0, 34);
+    // rect(obj.prev_cell[0], obj.prev_cell[1], CELL_SIZE, CELL_SIZE);  
   }
